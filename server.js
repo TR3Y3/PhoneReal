@@ -16,6 +16,8 @@ const LINE_TYPE_LABELS = {
   mobile: 'Mobile',
   landline: 'Landline',
   voip: 'VOIP / Internet Phone',
+  'toll-free': 'Toll-Free',
+  pager: 'Pager',
   unknown: 'Unknown',
 };
 
@@ -33,7 +35,7 @@ function lookupAreaCode(nationalNumber, country) {
 }
 
 async function abstractLookup(e164Number) {
-  const url = `https://phonevalidation.abstractapi.com/v1/?api_key=${encodeURIComponent(
+  const url = `https://phoneintelligence.abstractapi.com/v1/?api_key=${encodeURIComponent(
     ABSTRACT_API_KEY
   )}&phone=${encodeURIComponent(e164Number)}`;
 
@@ -90,21 +92,32 @@ app.post('/api/verify', async (req, res) => {
 
   try {
     const result = await abstractLookup(e164);
-    const lineType = result.type || null;
+    const validation = result.phone_validation || {};
+    const carrierInfo = result.phone_carrier || {};
+    const loc = result.phone_location || {};
+    const risk = result.phone_risk || {};
+    const lineType = carrierInfo.line_type || null;
 
     return res.json({
       input: raw,
       accurate: true,
-      valid: result.valid,
-      country: (result.country && result.country.code) || country || null,
+      valid: validation.is_valid,
+      isVoip: typeof validation.is_voip === 'boolean' ? validation.is_voip : null,
+      country: loc.country_code || country || null,
       national,
       international,
       e164,
-      carrier: result.carrier || null,
+      carrier: carrierInfo.name || null,
       type: lineType
         ? { raw: lineType, label: LINE_TYPE_LABELS[lineType] || lineType }
         : null,
-      location: area,
+      location:
+        loc.city || loc.region ? { city: loc.city, state: loc.region } : area,
+      risk: {
+        level: risk.risk_level || null,
+        disposable: Boolean(risk.is_disposable),
+        abuseDetected: Boolean(risk.is_abuse_detected),
+      },
     });
   } catch (err) {
     console.error('Abstract API Lookup error:', err.status, err.message);

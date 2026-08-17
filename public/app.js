@@ -42,6 +42,16 @@ function render(data) {
   }
 
   let rows = '';
+
+  if (typeof data.isVoip === 'boolean') {
+    rows += row(
+      'VOIP?',
+      data.isVoip
+        ? '<span class="pill voip">YES — INTERNET PHONE</span>'
+        : '<span class="pill landline">No</span>'
+    );
+  }
+
   if (data.type) {
     rows += row(
       'Line Type',
@@ -54,12 +64,30 @@ function render(data) {
   if (data.carrier) rows += row('Carrier', data.carrier);
 
   if (data.location) {
-    const loc = [data.location.city, data.location.stateCode].filter(Boolean).join(', ');
-    rows += row('Originally Assigned To', loc || '—');
+    const loc = [data.location.city, data.location.stateCode || data.location.state]
+      .filter(Boolean)
+      .join(', ');
+    const label = data.accurate && !data.setupNeeded ? 'Location' : 'Originally Assigned To';
+    rows += row(label, loc || '—');
+  }
+
+  if (data.risk && data.risk.level) {
+    rows += row('Risk Level', data.risk.level.toUpperCase());
+  }
+  if (data.risk && data.risk.disposable) {
+    rows += row('Disposable Number', '<span class="pill voip">YES</span>');
   }
 
   rows += row('Formatted', data.national);
   rows += row('Country', data.country || '—');
+
+  const caveat =
+    data.accurate && !data.setupNeeded
+      ? ''
+      : `<div class="caveat">
+          Location reflects where the number was originally assigned, not necessarily
+          the owner's current whereabouts (mobile numbers are portable).
+        </div>`;
 
   resultEl.innerHTML = `
     <div class="status">
@@ -67,10 +95,7 @@ function render(data) {
       <span class="number">${data.national}</span>
     </div>
     <div class="rows">${rows}</div>
-    <div class="caveat">
-      Location reflects where the number was originally assigned, not necessarily
-      the owner's current whereabouts (mobile numbers are portable).
-    </div>
+    ${caveat}
   `;
 
   if (data.setupNeeded) {

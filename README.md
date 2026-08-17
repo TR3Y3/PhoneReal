@@ -1,11 +1,11 @@
 # PhoneReal
 
 Internal tool for the sales floor: type a phone number, get back validity,
-line type (mobile / landline / VOIP), carrier, and originally assigned
-location.
+a direct VOIP yes/no, line type (mobile / landline / VOIP), carrier,
+live location, and a basic risk flag (disposable/abuse).
 
 Validity + formatting + area-code location run offline for free, always.
-Line type (the VOIP check) calls the Abstract API phone validation
+Everything carrier-related calls the Abstract API **Phone Intelligence**
 endpoint — a live carrier-database check, which is the only way to get
 real VOIP detection (no free/offline data source can do this reliably).
 Abstract's free tier is **100 lookups/month, forever, no credit card
@@ -16,7 +16,7 @@ manage.
 ## One-time setup (5 minutes)
 
 ### 1. Get an Abstract API key
-1. Go to https://www.abstractapi.com/api/phone-validation-api and sign up
+1. Go to https://www.abstractapi.com/api/phone-intelligence and sign up
    (email only — no phone number, no credit card).
 2. Copy your API key from the dashboard.
 
@@ -53,11 +53,14 @@ active yet — it never fakes a VOIP/mobile/landline answer it doesn't have.
 
 - **Validity & formatting** — always accurate (Google's `libphonenumber`
   library, same data real phone systems use to validate number shape).
-- **Line type (mobile/landline/VOIP)** — accurate once `ABSTRACT_API_KEY`
-  is set; this is a live carrier-database check, not a guess.
-- **Location** — reflects the area code's *original* assignment, not the
-  current owner's location. Mobile numbers are portable, so treat this as
-  a strong hint, not a guarantee.
+- **VOIP flag & line type (mobile/landline/VOIP)** — accurate once
+  `ABSTRACT_API_KEY` is set; this is a live carrier-database check, not a
+  guess.
+- **Location** — with a key set, this is Abstract's live carrier-registered
+  city/region. Without a key, it falls back to the area code's *original*
+  assignment, which is only a hint since mobile numbers are portable.
+- **Risk level / disposable flag** — a bonus signal from the same API call
+  (e.g. flags burner/temporary numbers), shown when Abstract returns it.
 
 ## Attribution
 
