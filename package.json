@@ -1,0 +1,16 @@
+{
+  "name": "phonereal",
+  "version": "1.0.0",
+  "description": "Free phone number verification tool: validity, line type (mobile/landline/VOIP), and originally-assigned location.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.22.2",
+    "libphonenumber-js": "^1.13.11"
+  }
+}

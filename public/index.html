@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PhoneReal — Phone Verification</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <h1>PhoneReal</h1>
+    <p class="tagline">Type a number. Get validity, line type, and location.</p>
+
+    <form id="verify-form" autocomplete="off">
+      <input
+        id="phone-input"
+        type="tel"
+        inputmode="tel"
+        placeholder="(555) 123-4567"
+        autofocus
+        required
+      />
+      <button type="submit" id="verify-btn">Verify</button>
+    </form>
+
+    <div id="banner" class="banner hidden"></div>
+
+    <section id="result" class="result hidden"></section>
+
+    <footer>PhoneReal — internal tool</footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
