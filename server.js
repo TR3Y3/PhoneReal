@@ -6,9 +6,8 @@ const areaCodes = require('./data/area-codes.json');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_CONFIGURED = Boolean(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN);
+const ABSTRACT_API_KEY = process.env.ABSTRACT_API_KEY;
+const ABSTRACT_CONFIGURED = Boolean(ABSTRACT_API_KEY);
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -17,15 +16,7 @@ const LINE_TYPE_LABELS = {
   mobile: 'Mobile',
   landline: 'Landline',
   voip: 'VOIP / Internet Phone',
-  nonFixedVoip: 'VOIP / Internet Phone',
-  fixedVoip: 'VOIP / Internet Phone',
-  personal: 'Personal Number',
-  tollFree: 'Toll-Free',
-  premium: 'Premium-Rate',
-  sharedCost: 'Shared-Cost',
-  uan: 'Universal Access Number',
-  voicemail: 'Voicemail',
-  pager: 'Pager',
+  unknown: 'Unknown',
 };
 
 function lookupAreaCode(nationalNumber, country) {
@@ -41,22 +32,17 @@ function lookupAreaCode(nationalNumber, country) {
   };
 }
 
-async function twilioLookup(e164Number) {
-  const url = `https://lookups.twilio.com/v2/PhoneNumbers/${encodeURIComponent(
-    e164Number
-  )}?Fields=line_type_intelligence`;
-  const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64');
+async function abstractLookup(e164Number) {
+  const url = `https://phonevalidation.abstractapi.com/v1/?api_key=${encodeURIComponent(
+    ABSTRACT_API_KEY
+  )}&phone=${encodeURIComponent(e164Number)}`;
 
-  const response = await fetch(url, {
-    headers: { Authorization: `Basic ${auth}` },
-  });
-
+  const response = await fetch(url);
   const data = await response.json();
 
   if (!response.ok) {
-    const err = new Error(data.message || 'Twilio Lookup request failed');
+    const err = new Error(data.error && data.error.message ? data.error.message : 'Abstract API request failed');
     err.status = response.status;
-    err.twilioCode = data.code;
     throw err;
   }
 
@@ -86,7 +72,7 @@ app.post('/api/verify', async (req, res) => {
   const international = phoneNumber.formatInternational();
   const e164 = phoneNumber.number;
 
-  if (!TWILIO_CONFIGURED) {
+  if (!ABSTRACT_CONFIGURED) {
     return res.json({
       input: raw,
       accurate: false,
@@ -98,45 +84,30 @@ app.post('/api/verify', async (req, res) => {
       e164,
       location: area,
       message:
-        'Carrier-grade verification is not configured yet on this server. Formatting/location shown below only — line type (mobile/landline/VOIP) is unavailable until a Twilio API key is added.',
+        'Carrier-grade verification is not configured yet on this server. Formatting/location shown below only — line type (mobile/landline/VOIP) is unavailable until an API key is added.',
     });
   }
 
   try {
-    const result = await twilioLookup(e164);
-    const lineType = result.line_type_intelligence
-      ? result.line_type_intelligence.type
-      : null;
+    const result = await abstractLookup(e164);
+    const lineType = result.type || null;
 
     return res.json({
       input: raw,
       accurate: true,
       valid: result.valid,
-      country: result.country_code || country || null,
+      country: (result.country && result.country.code) || country || null,
       national,
       international,
       e164,
-      carrier: result.line_type_intelligence
-        ? result.line_type_intelligence.carrier_name || null
-        : null,
+      carrier: result.carrier || null,
       type: lineType
         ? { raw: lineType, label: LINE_TYPE_LABELS[lineType] || lineType }
         : null,
       location: area,
     });
   } catch (err) {
-    if (err.status === 404) {
-      return res.json({
-        input: raw,
-        accurate: true,
-        valid: false,
-        national,
-        international,
-        e164,
-        location: area,
-      });
-    }
-    console.error('Twilio Lookup error:', err.status, err.twilioCode, err.message);
+    console.error('Abstract API Lookup error:', err.status, err.message);
     return res.status(502).json({
       error: 'Verification service is temporarily unavailable. Try again in a moment.',
     });
@@ -144,9 +115,9 @@ app.post('/api/verify', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, accurateMode: TWILIO_CONFIGURED });
+  res.json({ ok: true, accurateMode: ABSTRACT_CONFIGURED });
 });
 
 app.listen(PORT, () => {
-  console.log(`PhoneReal listening on port ${PORT} (accurate mode: ${TWILIO_CONFIGURED})`);
+  console.log(`PhoneReal listening on port ${PORT} (accurate mode: ${ABSTRACT_CONFIGURED})`);
 });

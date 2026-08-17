@@ -6,7 +6,5 @@ services:
     buildCommand: npm install
     startCommand: npm start
     envVars:
-      - key: TWILIO_ACCOUNT_SID
-        sync: false
-      - key: TWILIO_AUTH_TOKEN
+      - key: ABSTRACT_API_KEY
         sync: false
