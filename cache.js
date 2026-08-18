@@ -24,7 +24,7 @@ const COUNTER_TTL_SECONDS = 60 * 60 * 24 * 40; // 40 days, covers a full billing
 async function getCachedResult(e164) {
   if (!ready) return null;
   try {
-    const raw = await client.get(`cache:${e164}`);
+    const raw = await client.get(`cache:v2:${e164}`);
     return raw ? JSON.parse(raw) : null;
   } catch (err) {
     console.error('Cache read failed:', err.message);
@@ -35,7 +35,7 @@ async function getCachedResult(e164) {
 async function setCachedResult(e164, result) {
   if (!ready) return;
   try {
-    await client.set(`cache:${e164}`, JSON.stringify(result), { EX: CACHE_TTL_SECONDS });
+    await client.set(`cache:v2:${e164}`, JSON.stringify(result), { EX: CACHE_TTL_SECONDS });
   } catch (err) {
     console.error('Cache write failed:', err.message);
   }

@@ -157,6 +157,66 @@ h1 {
 .pill.landline { background: rgba(53, 196, 107, 0.15); color: var(--green); }
 .pill.other { background: rgba(139, 147, 163, 0.15); color: var(--muted); }
 
+.alert {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.alert b { font-weight: 800; letter-spacing: 0.02em; }
+.alert span { font-size: 12px; opacity: 0.85; }
+
+.alert.danger {
+  background: rgba(239, 76, 84, 0.15);
+  border: 1px solid rgba(239, 76, 84, 0.45);
+  color: var(--red);
+}
+
+.alert.warn {
+  background: rgba(242, 169, 59, 0.12);
+  border: 1px solid rgba(242, 169, 59, 0.4);
+  color: var(--amber);
+}
+
+.alert.clear {
+  background: rgba(53, 196, 107, 0.12);
+  border: 1px solid rgba(53, 196, 107, 0.35);
+  color: var(--green);
+}
+
+.flag-list {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.flag {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--muted);
+  background: rgba(139, 147, 163, 0.07);
+}
+
+.flag.high { border-left-color: var(--red); background: rgba(239, 76, 84, 0.08); }
+.flag.medium { border-left-color: var(--amber); background: rgba(242, 169, 59, 0.07); }
+.flag.low { border-left-color: var(--muted); }
+
+.flag-label { font-size: 13px; font-weight: 700; }
+.flag.high .flag-label { color: var(--red); }
+.flag.medium .flag-label { color: var(--amber); }
+.flag.low .flag-label { color: var(--muted); }
+
+.flag-detail { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
 .caveat {
   margin-top: 16px;
   font-size: 12px;

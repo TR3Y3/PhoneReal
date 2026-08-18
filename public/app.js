@@ -26,6 +26,44 @@ function hideBanner() {
   bannerEl.classList.add('hidden');
 }
 
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function renderFlags(data) {
+  const flags = data.flags || [];
+  if (!flags.length) {
+    // Only claim "clear" when a live provider actually checked it.
+    if (data.riskSummary && data.riskSummary.status === 'clear' && !data.riskSummary.partial) {
+      return '<div class="alert clear"><b>No red flags</b><span>Nothing suspicious found on this number.</span></div>';
+    }
+    return '';
+  }
+
+  const high = flags.filter((f) => f.severity === 'high').length;
+  const headline = high
+    ? `${high} RED FLAG${high === 1 ? '' : 'S'} — TREAT WITH CAUTION`
+    : 'Minor flags found';
+
+  const items = flags
+    .map(
+      (f) => `<li class="flag ${f.severity}">
+        <span class="flag-label">${escapeHtml(f.label)}</span>
+        <span class="flag-detail">${escapeHtml(f.detail)}</span>
+      </li>`
+    )
+    .join('');
+
+  return `
+    <div class="alert ${high ? 'danger' : 'warn'}">
+      <b>${headline}</b>
+    </div>
+    <ul class="flag-list">${items}</ul>
+  `;
+}
+
 function render(data) {
   resultEl.classList.remove('hidden');
   hideBanner();
@@ -34,9 +72,10 @@ function render(data) {
     resultEl.innerHTML = `
       <div class="status">
         <span class="badge invalid">INVALID</span>
-        <span class="number">${data.input}</span>
+        <span class="number">${escapeHtml(data.input)}</span>
       </div>
-      <div class="rows">${row('Reason', data.reason || 'Not a valid, in-service number.')}</div>
+      <div class="rows">${row('Reason', escapeHtml(data.reason || 'Not a valid, in-service number.'))}</div>
+      ${renderFlags(data)}
     `;
     return;
   }
@@ -72,14 +111,11 @@ function render(data) {
   }
 
   if (data.risk && data.risk.level) {
-    rows += row('Risk Level', data.risk.level.toUpperCase());
-  }
-  if (data.risk && data.risk.disposable) {
-    rows += row('Disposable Number', '<span class="pill voip">YES</span>');
+    rows += row('Risk Level', escapeHtml(data.risk.level.toUpperCase()));
   }
 
-  rows += row('Formatted', data.national);
-  rows += row('Country', data.country || '—');
+  rows += row('Formatted', escapeHtml(data.national));
+  rows += row('Country', escapeHtml(data.country || '—'));
 
   const caveat =
     data.accurate && !data.setupNeeded
@@ -92,8 +128,9 @@ function render(data) {
   resultEl.innerHTML = `
     <div class="status">
       <span class="badge valid">VALID</span>
-      <span class="number">${data.national}</span>
+      <span class="number">${escapeHtml(data.national)}</span>
     </div>
+    ${renderFlags(data)}
     <div class="rows">${rows}</div>
     ${caveat}
   `;
