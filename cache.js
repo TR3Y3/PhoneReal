@@ -68,4 +68,52 @@ async function getMonthlyUsage(provider) {
   }
 }
 
-module.exports = { getCachedResult, setCachedResult, incrementMonthlyUsage, getMonthlyUsage };
+// Cache hits are tracked separately so the savings the cache is actually
+// delivering can be seen, not just guessed at.
+async function incrementCacheHits() {
+  if (!ready) return null;
+  try {
+    const key = `hits:${new Date().toISOString().slice(0, 7)}`;
+    const count = await client.incr(key);
+    if (count === 1) await client.expire(key, COUNTER_TTL_SECONDS);
+    return count;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function getCacheHits() {
+  if (!ready) return null;
+  try {
+    const val = await client.get(`hits:${new Date().toISOString().slice(0, 7)}`);
+    return val ? parseInt(val, 10) : 0;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function countCachedNumbers() {
+  if (!ready) return null;
+  try {
+    let total = 0;
+    for await (const _ of client.scanIterator({ MATCH: 'cache:v2:*', COUNT: 200 })) total++;
+    return total;
+  } catch (err) {
+    return null;
+  }
+}
+
+function isReady() {
+  return ready;
+}
+
+module.exports = {
+  getCachedResult,
+  setCachedResult,
+  incrementMonthlyUsage,
+  getMonthlyUsage,
+  incrementCacheHits,
+  getCacheHits,
+  countCachedNumbers,
+  isReady,
+};

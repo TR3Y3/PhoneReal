@@ -71,6 +71,24 @@ never fakes a VOIP/mobile/landline answer it doesn't have. Without
 lookup goes straight to Abstract) — useful for local testing, not
 recommended for production since you'd lose the quota protection.
 
+## Checking usage (private)
+
+Usage is deliberately kept off the public page. Two ways to see it:
+
+**Private endpoint** — visit
+`https://phonereal.onrender.com/api/usage?key=YOUR_ADMIN_KEY`
+
+Render generates `ADMIN_KEY` automatically on Blueprint sync; read it in
+the web service's Environment tab. Without the exact key the endpoint
+returns a plain 404, so reps who stumble on the path see nothing. It
+reports per-provider usage, lookups served free from cache, how many
+numbers are cached, remaining quota, and a warning once fewer than 100
+lookups remain for the month.
+
+**Render logs** — every lookup writes one line to the service's Logs tab,
+e.g. `[lookup] +12125551234 source=abstract abstract_used=42/95` or
+`source=cache`, so you can watch consumption without hitting the endpoint.
+
 ## How it decides which provider to use
 
 1. Check the cache for this exact number — if found (and under 60 days

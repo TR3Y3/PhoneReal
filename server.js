@@ -2,7 +2,16 @@ const express = require('express');
 const path = require('path');
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const areaCodes = require('./data/area-codes.json');
-const { getCachedResult, setCachedResult, incrementMonthlyUsage, getMonthlyUsage } = require('./cache');
+const {
+  getCachedResult,
+  setCachedResult,
+  incrementMonthlyUsage,
+  getMonthlyUsage,
+  incrementCacheHits,
+  getCacheHits,
+  countCachedNumbers,
+  isReady,
+} = require('./cache');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +22,10 @@ const ABSTRACT_MONTHLY_SOFT_CAP = 95; // stay under the real 100/month limit
 
 const VERIPHONE_API_KEY = process.env.VERIPHONE_API_KEY;
 const VERIPHONE_CONFIGURED = Boolean(VERIPHONE_API_KEY);
+const VERIPHONE_MONTHLY_LIMIT = 1000;
+
+// Guards the private usage endpoint. Unset = endpoint disabled entirely.
+const ADMIN_KEY = process.env.ADMIN_KEY;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -264,6 +277,8 @@ app.post('/api/verify', async (req, res) => {
 
   const cached = await getCachedResult(e164);
   if (cached) {
+    await incrementCacheHits();
+    console.log(`[lookup] ${e164} source=cache`);
     return res.json({ ...cached, input: raw, national, international, e164, cached: true });
   }
 
@@ -276,7 +291,8 @@ app.post('/api/verify', async (req, res) => {
   if (abstractAvailable) {
     try {
       result = await abstractLookup(e164);
-      await incrementMonthlyUsage('abstract');
+      const used = await incrementMonthlyUsage('abstract');
+      console.log(`[lookup] ${e164} source=abstract abstract_used=${used}/${ABSTRACT_MONTHLY_SOFT_CAP}`);
     } catch (err) {
       console.error('Abstract Lookup error:', err.status, err.message);
       lookupError = err;
@@ -286,7 +302,8 @@ app.post('/api/verify', async (req, res) => {
   if (!result && VERIPHONE_CONFIGURED) {
     try {
       result = await veriphoneLookup(e164);
-      await incrementMonthlyUsage('veriphone');
+      const used = await incrementMonthlyUsage('veriphone');
+      console.log(`[lookup] ${e164} source=veriphone veriphone_used=${used}/${VERIPHONE_MONTHLY_LIMIT}`);
       lookupError = null;
     } catch (err) {
       console.error('Veriphone Lookup error:', err.status, err.message);
@@ -347,6 +364,51 @@ app.post('/api/verify', async (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, abstractConfigured: ABSTRACT_CONFIGURED, veriphoneConfigured: VERIPHONE_CONFIGURED });
+});
+
+// Private usage report. Not linked from the UI and returns 404 without the
+// right key, so reps hitting the site never see it exists.
+app.get('/api/usage', async (req, res) => {
+  if (!ADMIN_KEY || req.query.key !== ADMIN_KEY) {
+    return res.status(404).send('Not found');
+  }
+
+  if (!isReady()) {
+    return res.json({
+      tracking: false,
+      note: 'Cache/usage store is not connected, so usage cannot be counted. Check REDIS_URL.',
+    });
+  }
+
+  const [abstractUsed, veriphoneUsed, cacheHits, cachedNumbers] = await Promise.all([
+    getMonthlyUsage('abstract'),
+    getMonthlyUsage('veriphone'),
+    getCacheHits(),
+    countCachedNumbers(),
+  ]);
+
+  const apiCalls = (abstractUsed || 0) + (veriphoneUsed || 0);
+  const remaining =
+    Math.max(0, ABSTRACT_MONTHLY_SOFT_CAP - (abstractUsed || 0)) +
+    Math.max(0, VERIPHONE_MONTHLY_LIMIT - (veriphoneUsed || 0));
+
+  res.json({
+    tracking: true,
+    month: new Date().toISOString().slice(0, 7),
+    abstract: { used: abstractUsed, cap: ABSTRACT_MONTHLY_SOFT_CAP },
+    veriphone: { used: veriphoneUsed, cap: VERIPHONE_MONTHLY_LIMIT },
+    totals: {
+      apiCallsSpent: apiCalls,
+      remaining,
+      servedFromCache: cacheHits,
+      totalLookups: apiCalls + (cacheHits || 0),
+      numbersCached: cachedNumbers,
+    },
+    warning:
+      remaining < 100
+        ? 'Under 100 lookups left this month — time to add another provider or upgrade.'
+        : null,
+  });
 });
 
 app.listen(PORT, () => {
