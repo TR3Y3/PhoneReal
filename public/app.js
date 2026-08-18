@@ -8,7 +8,7 @@ function pillClass(rawType) {
   if (!rawType) return 'other';
   if (rawType === 'voip' || rawType === 'nonFixedVoip' || rawType === 'fixedVoip') return 'voip';
   if (rawType === 'mobile') return 'mobile';
-  if (rawType === 'landline') return 'landline';
+  if (rawType === 'landline' || rawType === 'fixed_line') return 'landline';
   return 'other';
 }
 

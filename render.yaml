@@ -8,3 +8,15 @@ services:
     envVars:
       - key: ABSTRACT_API_KEY
         sync: false
+      - key: VERIPHONE_API_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: phonereal-cache
+          property: connectionString
+
+  - type: keyvalue
+    name: phonereal-cache
+    plan: free
+    ipAllowList: []
