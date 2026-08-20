@@ -3,17 +3,50 @@ const redisUrl = process.env.REDIS_URL;
 let client = null;
 let ready = false;
 
+// The cache is an optimization, never a dependency. Any failure here — missing
+// module, bad URL, unreachable host — must leave the site fully working, just
+// without caching, rather than taking down phone lookups entirely.
 if (redisUrl) {
-  const { createClient } = require('redis');
-  client = createClient({ url: redisUrl });
-  client.on('error', (err) => console.error('Redis error:', err.message));
-  client
-    .connect()
-    .then(() => {
+  try {
+    const { createClient } = require('redis');
+    client = createClient({
+      url: redisUrl,
+      socket: {
+        // Back off and eventually give up instead of retrying in a tight loop.
+        reconnectStrategy: (retries) => {
+          if (retries > 5) {
+            console.error('Redis unreachable after 5 attempts — continuing without cache.');
+            return false;
+          }
+          return Math.min(retries * 500, 5000);
+        },
+      },
+    });
+
+    let loggedError = false;
+    client.on('error', (err) => {
+      // One line, not one per retry.
+      if (!loggedError) {
+        console.error('Redis error:', err.message);
+        loggedError = true;
+      }
+      ready = false;
+    });
+    client.on('ready', () => {
       ready = true;
+      loggedError = false;
       console.log('Connected to Redis cache.');
-    })
-    .catch((err) => console.error('Redis connect failed:', err.message));
+    });
+
+    client.connect().catch((err) => {
+      console.error('Redis connect failed — continuing without cache:', err.message);
+      ready = false;
+    });
+  } catch (err) {
+    console.error('Redis unavailable — continuing without cache:', err.message);
+    client = null;
+    ready = false;
+  }
 } else {
   console.log('REDIS_URL not set — running without cache/usage tracking.');
 }
